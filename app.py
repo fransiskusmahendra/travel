@@ -212,9 +212,8 @@ st.markdown(
       position:relative; overflow:hidden; }
     .hero:after { content:""; position:absolute; width:210px; height:210px; border-radius:50%; right:-70px;
       top:-105px; border:34px solid rgba(245,130,32,.9); }
-    .brand { font-size:.78rem; font-weight:800; letter-spacing:.15em; color:#ffb36f; }
-    .hero h1 { margin:.25rem 0 .35rem; font-size:2rem; color:white; }
-    .hero p { margin:0; color:#d9ebf7; max-width:660px; }
+    .brand { font-size:2.35rem; line-height:1.1; font-weight:900; letter-spacing:.055em; color:#ffb36f; }
+    .hero-subtitle { margin:.55rem 0 0; font-size:1.15rem; line-height:1.35; font-weight:700; color:white; }
     .panel-title { font-size:1.08rem; font-weight:800; color:var(--navy); margin-bottom:.2rem; }
     .panel-note { color:#607484; font-size:.88rem; margin-bottom:1rem; }
     div[data-testid="stForm"] { background:white; border:1px solid #e1e9ef; border-radius:18px; padding:22px;
@@ -237,13 +236,15 @@ st.markdown(
     .benefit-card span { color:var(--orange); font-weight:800; font-size:.88rem; }
     .privacy { color:#687b89; text-align:center; font-size:.8rem; padding-top:24px; }
     .qira-footer { margin-top:18px; padding:22px 18px 8px; border-top:1px solid #dce5eb; text-align:center; }
-    .qira-footer-logo { display:block; width:170px; max-width:55%; height:auto; margin:0 auto 10px; }
+    .qira-footer-logo { display:block; width:170px; max-width:55%; height:auto; margin:0 auto 8px; }
+    .qira-tagline { color:#526775; font-size:.78rem; font-style:italic; font-weight:700; margin-bottom:12px; }
     .qira-managed { color:#263d4d; font-size:.86rem; font-weight:800; margin-bottom:6px; }
     .copyright { color:#687b89; text-align:center; font-size:.76rem; }
     div.stDownloadButton > button { background:var(--orange); color:white; border:0; font-weight:800; }
     div.stDownloadButton > button:hover { background:#dc6f12; color:white; border:0; }
     div.stButton > button[kind="primary"] { background:var(--blue); border-color:var(--blue); }
-    @media (max-width:700px) { .hero { padding:22px 20px; } .hero h1 { font-size:1.55rem; }
+    @media (max-width:700px) { .hero { padding:22px 20px; } .brand { font-size:1.8rem; }
+      .hero-subtitle { font-size:1rem; }
       .qira-footer-logo { width:145px; } }
     </style>
     """,
@@ -265,8 +266,7 @@ st.markdown(
     """
     <section class="hero">
       <div class="brand">JASINDO TRAVEL</div>
-      <h1>Cetak Nota Asuransi Perjalanan</h1>
-      <p>Buat nota pembayaran yang rapi, unduh PDF, lalu cetak pada printer thermal ukuran 58 mm atau 80 mm.</p>
+      <div class="hero-subtitle">Cetak Nota Asuransi Perjalanan</div>
     </section>
     """,
     unsafe_allow_html=True,
@@ -348,6 +348,7 @@ st.markdown('<div class="privacy">Data hanya diproses di sesi browser dan tidak 
 st.markdown(
     f'''<footer class="qira-footer">
       <img class="qira-footer-logo" src="data:image/png;base64,{logo_base64}" alt="Logo QIRA">
+      <div class="qira-tagline">Your Business, Understood</div>
       <div class="qira-managed">Build and Managed by Qira Automation &amp; System Solution</div>
       <div class="copyright">&copy; 2026 QIRA. Hak cipta dilindungi.</div>
     </footer>''',

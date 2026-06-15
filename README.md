@@ -11,7 +11,7 @@ streamlit run app.py
 
 ## Deploy gratis di Streamlit Community Cloud
 
-1. Buat repository baru di GitHub, lalu unggah `app.py`, `requirements.txt`, dan folder `.streamlit` ke lokasi yang sama.
+1. Buat repository baru di GitHub, lalu unggah `app.py`, `requirements.txt`, folder `.streamlit`, dan folder `assets` ke lokasi yang sama.
 2. Buka https://share.streamlit.io dan masuk dengan akun GitHub.
 3. Pilih **Create app**, repository yang baru dibuat, branch `main`, dan file `app.py`.
 4. Pilih **Deploy**. Tidak diperlukan secret atau database.
