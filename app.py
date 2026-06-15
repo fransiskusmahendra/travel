@@ -1,7 +1,9 @@
+import base64
 import re
 from datetime import date, datetime, timedelta
 from html import escape
 from io import BytesIO
+from pathlib import Path
 
 import streamlit as st
 from reportlab.lib.colors import HexColor
@@ -234,10 +236,15 @@ st.markdown(
     .benefit-card strong { color:var(--navy); font-size:.93rem; display:block; margin-bottom:5px; }
     .benefit-card span { color:var(--orange); font-weight:800; font-size:.88rem; }
     .privacy { color:#687b89; text-align:center; font-size:.8rem; padding-top:24px; }
+    .qira-footer { margin-top:18px; padding:22px 18px 8px; border-top:1px solid #dce5eb; text-align:center; }
+    .qira-footer-logo { display:block; width:170px; max-width:55%; height:auto; margin:0 auto 10px; }
+    .qira-managed { color:#263d4d; font-size:.86rem; font-weight:800; margin-bottom:6px; }
+    .copyright { color:#687b89; text-align:center; font-size:.76rem; }
     div.stDownloadButton > button { background:var(--orange); color:white; border:0; font-weight:800; }
     div.stDownloadButton > button:hover { background:#dc6f12; color:white; border:0; }
     div.stButton > button[kind="primary"] { background:var(--blue); border-color:var(--blue); }
-    @media (max-width:700px) { .hero { padding:22px 20px; } .hero h1 { font-size:1.55rem; } }
+    @media (max-width:700px) { .hero { padding:22px 20px; } .hero h1 { font-size:1.55rem; }
+      .qira-footer-logo { width:145px; } }
     </style>
     """,
     unsafe_allow_html=True,
@@ -250,6 +257,9 @@ def new_receipt_number() -> str:
 
 if "receipt_no" not in st.session_state:
     st.session_state.receipt_no = new_receipt_number()
+
+logo_path = Path(__file__).parent / "assets" / "qira-logo.png"
+logo_base64 = base64.b64encode(logo_path.read_bytes()).decode("ascii")
 
 st.markdown(
     """
@@ -335,3 +345,11 @@ for index, (title, amount) in enumerate(BENEFITS):
 
 st.markdown('<div class="privacy">Data hanya diproses di sesi browser dan tidak disimpan ke basis data. '
             'Untuk printer USB, unduh PDF lalu gunakan menu cetak pada perangkat Anda.</div>', unsafe_allow_html=True)
+st.markdown(
+    f'''<footer class="qira-footer">
+      <img class="qira-footer-logo" src="data:image/png;base64,{logo_base64}" alt="Logo QIRA">
+      <div class="qira-managed">Build and Managed by Qira Automation &amp; System Solution</div>
+      <div class="copyright">&copy; 2026 QIRA. Hak cipta dilindungi.</div>
+    </footer>''',
+    unsafe_allow_html=True,
+)
