@@ -12,7 +12,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 
-COMPANY_NAME = "PT ASURANSI JASA INDONESIA"
+COMPANY_NAME = ""
 COMPANY_ADDRESS = [
     "Graha Jasindo, Jl. Menteng Raya No. 21",
     "Jakarta Pusat, DKI Jakarta 10340",
@@ -67,12 +67,11 @@ def build_receipt_text(data: dict) -> str:
     width = 42 if int(data["paper_width_mm"]) == 80 else 30
     divider = "-" * width
     lines = [
-        COMPANY_NAME.center(width),
         "JASINDO TRAVEL".center(width),
         divider,
         f"No. Nota : {data['receipt_no']}",
         f"Tanggal  : {data['date_text']}",
-        f"Petugas  : {data['cashier']}",
+        f"Petugas Primkopau : {data['cashier']}",
         divider,
     ]
     fields = [
@@ -97,8 +96,6 @@ def build_receipt_text(data: dict) -> str:
     lines.extend([
         divider,
         *wrap_chars("Bukti pembayaran sah. Pertanggungan mengikuti syarat dan ketentuan polis.", width),
-        "",
-        "TERIMA KASIH".center(width),
     ])
     return "\n".join(lines)
 
@@ -130,10 +127,9 @@ def generate_receipt_pdf(data: dict) -> bytes:
     def add(text="", font="Helvetica", size=body_size, gap=line_height):
         rows.append((str(text), font, size, gap))
 
-    add(COMPANY_NAME, "Helvetica-Bold", body_size + 1, line_height + 1)
     add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 2, line_height + 4)
     add("rule", gap=7)
-    for label, value in [("No. Nota", data["receipt_no"]), ("Tanggal", data["date_text"]), ("Petugas", data["cashier"])]:
+    for label, value in [("No. Nota", data["receipt_no"]), ("Tanggal", data["date_text"]), ("Petugas Primkopau", data["cashier"])]:
         add(f"{label}: {value}")
     add("rule", gap=8)
     for label, value in [
@@ -170,14 +166,13 @@ def generate_receipt_pdf(data: dict) -> bytes:
         content_width,
     ):
         add(line, "Helvetica", body_size - 0.4)
-    add("TERIMA KASIH", "Helvetica-Bold", body_size + 1, line_height + 5)
 
     page_height = max(sum(row[3] for row in rows) + (16 * mm), 150 * mm)
     output = BytesIO()
     pdf = canvas.Canvas(output, pagesize=(page_width, page_height), pageCompression=1)
     y = page_height - (7 * mm)
     navy, orange = HexColor("#073B68"), HexColor("#F58220")
-    centered_texts = {COMPANY_NAME, "JASINDO TRAVEL", "MANFAAT / JAMINAN", "TERIMA KASIH"}
+    centered_texts = {COMPANY_NAME, "JASINDO TRAVEL", "MANFAAT / JAMINAN",}
     for address in COMPANY_ADDRESS:
         centered_texts.update(wrap_pdf(address, "Helvetica", body_size, content_width))
     for text, font, size, gap in rows:
@@ -286,7 +281,7 @@ with form_col:
             identity_no = st.text_input("NIK / No. Paspor *", placeholder="Masukkan nomor identitas")
             origin = st.text_input("Kota asal", placeholder="Contoh: Jakarta")
         with c2:
-            cashier = st.text_input("Petugas *", value="Mahendra")
+            cashier = st.text_input("Petugas Primkopau *", value="")
             transaction_time = st.time_input("Waktu transaksi *", value=datetime.now().time().replace(second=0, microsecond=0))
             phone = st.text_input("Nomor HP *", placeholder="Contoh: 081234567890")
             destination = st.text_input("Tujuan perjalanan", placeholder="Contoh: Bandung")
@@ -301,7 +296,7 @@ with form_col:
 
     start_at = datetime.combine(transaction_date, transaction_time)
     required = {"Nomor nota": receipt_no, "Nama peserta": customer_name, "NIK / No. Paspor": identity_no,
-                "Nomor HP": phone, "Petugas": cashier}
+                "Nomor HP": phone, "Petugas Primkopau": cashier}
     missing = [label for label, value in required.items() if not str(value).strip()]
     data = {
         "receipt_no": receipt_no.strip() or "-", "date_text": start_at.strftime("%d/%m/%Y %H:%M"),
