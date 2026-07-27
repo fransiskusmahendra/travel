@@ -6,6 +6,7 @@ from io import BytesIO
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import mm
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -194,6 +195,61 @@ def generate_receipt_pdf(data: dict) -> bytes:
     return output.getvalue()
 
 
+def render_android_print_button(pdf_bytes: bytes, receipt_no: str) -> None:
+    """Open the generated PDF from a user gesture for Android print/share apps."""
+    encoded_pdf = base64.b64encode(pdf_bytes).decode("ascii")
+    safe_filename = f"nota_{sanitize_filename(receipt_no)}.pdf"
+    components.html(
+        f"""
+        <style>
+          * {{ box-sizing: border-box; }}
+          body {{ margin: 0; font-family: Arial, sans-serif; }}
+          button {{
+            width: 100%; min-height: 42px; border: 0; border-radius: 8px;
+            background: #0075bd; color: white; font-size: 16px;
+            font-weight: 800; cursor: pointer;
+          }}
+          button:active {{ background: #07588d; }}
+          #status {{ margin: 8px 2px 0; color: #526775; font-size: 12px; }}
+        </style>
+        <button id="print-button" type="button">🖨️ Cetak Nota</button>
+        <div id="status"></div>
+        <script>
+          const pdfBase64 = "{encoded_pdf}";
+          const filename = "{safe_filename}";
+
+          document.getElementById("print-button").addEventListener("click", () => {{
+            const binary = atob(pdfBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index++) {{
+              bytes[index] = binary.charCodeAt(index);
+            }}
+
+            const pdfBlob = new Blob([bytes], {{ type: "application/pdf" }});
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            const opened = window.open(pdfUrl, "_blank");
+
+            if (opened) {{
+              document.getElementById("status").textContent =
+                "Nota dibuka. Pilih menu Cetak atau Bagikan ke aplikasi printer Bluetooth.";
+              setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+              return;
+            }}
+
+            const fallback = document.createElement("a");
+            fallback.href = pdfUrl;
+            fallback.download = filename;
+            fallback.click();
+            document.getElementById("status").textContent =
+              "Popup diblokir. Nota telah diunduh; buka PDF lalu pilih Cetak.";
+            setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+          }});
+        </script>
+        """,
+        height=72,
+    )
+
+
 st.set_page_config(page_title="Cetak Nota | Jasindo Travel", page_icon="J", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown(
@@ -255,7 +311,7 @@ if "receipt_no" not in st.session_state:
     st.session_state.receipt_no = new_receipt_number()
 
 logo_path = Path(__file__).parent / "assets" / "qira-logo.png"
-logo_base64 = base64.b64encode(logo_path.read_bytes()).decode("ascii")
+logo_base64 = base64.b64encode(logo_path.read_bytes()).decode("ascii") if logo_path.exists() else ""
 
 st.markdown(
     """
@@ -286,11 +342,9 @@ with form_col:
             phone = st.text_input("Nomor HP *", placeholder="Contoh: 081234567890")
             destination = st.text_input("Tujuan perjalanan", placeholder="Contoh: Bandung")
             premium_text = st.text_input("Premi (Rp) *", value=f"{DEFAULT_PREMIUM:,}".replace(",", "."))
-        s1, s2 = st.columns(2)
-        with s1:
-            duration_days = st.number_input("Masa perlindungan (hari)", min_value=1, max_value=31, value=3)
-        with s2:
-            paper_width = st.selectbox("Ukuran kertas", [80, 58], format_func=lambda x: f"{x} mm")
+        duration_days = st.number_input("Masa perlindungan (hari)", min_value=1, max_value=31, value=3)
+        paper_width = 80
+        st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180)
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
 
@@ -322,9 +376,14 @@ with preview_col:
     st.markdown(f'<div class="receipt-preview">{escape(preview)}</div>', unsafe_allow_html=True)
     if "receipt_data" in st.session_state:
         pdf_bytes = generate_receipt_pdf(active_data)
-        st.download_button("Unduh PDF Nota", data=pdf_bytes,
+        render_android_print_button(pdf_bytes, active_data["receipt_no"])
+        st.caption(
+            "Pada Android, pilih **Cetak** atau bagikan PDF ke aplikasi printer Bluetooth yang kompatibel."
+        )
+        st.download_button("Unduh PDF Nota (Cadangan)", data=pdf_bytes,
                            file_name=f"nota_{sanitize_filename(active_data['receipt_no'])}.pdf",
                            mime="application/pdf", use_container_width=True)
+        st.caption("Tombol **Cetak Nota** dapat digunakan kembali untuk mencetak ulang transaksi terakhir.")
         if st.button("Transaksi Baru", use_container_width=True):
             st.session_state.pop("receipt_data", None)
             st.session_state.receipt_no = new_receipt_number()
@@ -339,10 +398,16 @@ for index, (title, amount) in enumerate(BENEFITS):
         st.markdown(f'<div class="benefit-card"><strong>{title}</strong><span>{amount}</span></div>', unsafe_allow_html=True)
 
 st.markdown('<div class="privacy">Data hanya diproses di sesi browser dan tidak disimpan ke basis data. '
-            'Untuk printer USB, unduh PDF lalu gunakan menu cetak pada perangkat Anda.</div>', unsafe_allow_html=True)
+            'Pada Android, pencetakan diteruskan melalui layanan atau aplikasi printer Bluetooth yang terpasang.</div>',
+            unsafe_allow_html=True)
+logo_html = (
+    f'<img class="qira-footer-logo" src="data:image/png;base64,{logo_base64}" alt="Logo QIRA">'
+    if logo_base64
+    else '<div class="qira-managed">QIRA</div>'
+)
 st.markdown(
     f'''<footer class="qira-footer">
-      <img class="qira-footer-logo" src="data:image/png;base64,{logo_base64}" alt="Logo QIRA">
+      {logo_html}
       <div class="qira-tagline">Your Business, Understood</div>
       <div class="qira-managed">Build and Managed by Qira Automation &amp; System Solution</div>
       <div class="copyright">&copy; 2026 QIRA. Hak cipta dilindungi.</div>
