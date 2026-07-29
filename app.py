@@ -307,8 +307,30 @@ def new_receipt_number() -> str:
     return f"JTR-{datetime.now():%Y%m%d-%H%M%S}"
 
 
-if "receipt_no" not in st.session_state:
-    st.session_state.receipt_no = new_receipt_number()
+def reset_transaction() -> None:
+    """Clear every transaction field and prepare a fresh receipt number."""
+    now = datetime.now()
+    st.session_state.pop("receipt_data", None)
+    st.session_state.update(
+        {
+            "receipt_no_input": new_receipt_number(),
+            "transaction_date_input": date.today(),
+            "transaction_time_input": now.time().replace(second=0, microsecond=0),
+            "customer_name_input": "",
+            "identity_no_input": "",
+            "origin_input": "",
+            "cashier_input": "",
+            "phone_input": "",
+            "destination_input": "",
+            "premium_input": f"{DEFAULT_PREMIUM:,}".replace(",", "."),
+            "duration_days_input": 3,
+            "notes_input": "",
+        }
+    )
+
+
+if "receipt_no_input" not in st.session_state:
+    reset_transaction()
 
 logo_path = Path(__file__).parent / "assets" / "qira-logo.png"
 logo_base64 = base64.b64encode(logo_path.read_bytes()).decode("ascii") if logo_path.exists() else ""
@@ -331,21 +353,33 @@ with form_col:
     with st.form("receipt_form"):
         c1, c2 = st.columns(2)
         with c1:
-            receipt_no = st.text_input("Nomor nota *", value=st.session_state.receipt_no)
-            transaction_date = st.date_input("Tanggal transaksi *", value=date.today(), format="DD/MM/YYYY")
-            customer_name = st.text_input("Nama peserta *", placeholder="Nama sesuai identitas")
-            identity_no = st.text_input("NIK / No. Paspor *", placeholder="Masukkan nomor identitas")
-            origin = st.text_input("Kota asal", placeholder="Contoh: Jakarta")
+            receipt_no = st.text_input("Nomor nota *", key="receipt_no_input")
+            transaction_date = st.date_input(
+                "Tanggal transaksi *", format="DD/MM/YYYY", key="transaction_date_input"
+            )
+            customer_name = st.text_input(
+                "Nama peserta *", placeholder="Nama sesuai identitas", key="customer_name_input"
+            )
+            identity_no = st.text_input(
+                "NIK / No. Paspor *", placeholder="Masukkan nomor identitas", key="identity_no_input"
+            )
+            origin = st.text_input("Kota asal", placeholder="Contoh: Jakarta", key="origin_input")
         with c2:
-            cashier = st.text_input("Petugas Primkopau *", value="")
-            transaction_time = st.time_input("Waktu transaksi *", value=datetime.now().time().replace(second=0, microsecond=0))
-            phone = st.text_input("Nomor HP *", placeholder="Contoh: 081234567890")
-            destination = st.text_input("Tujuan perjalanan", placeholder="Contoh: Bandung")
-            premium_text = st.text_input("Premi (Rp) *", value=f"{DEFAULT_PREMIUM:,}".replace(",", "."))
-        duration_days = st.number_input("Masa perlindungan (hari)", min_value=1, max_value=31, value=3)
+            cashier = st.text_input("Petugas Primkopau *", key="cashier_input")
+            transaction_time = st.time_input("Waktu transaksi *", key="transaction_time_input")
+            phone = st.text_input(
+                "Nomor HP *", placeholder="Contoh: 081234567890", key="phone_input"
+            )
+            destination = st.text_input(
+                "Tujuan perjalanan", placeholder="Contoh: Bandung", key="destination_input"
+            )
+            premium_text = st.text_input("Premi (Rp) *", key="premium_input")
+        duration_days = st.number_input(
+            "Masa perlindungan (hari)", min_value=1, max_value=31, key="duration_days_input"
+        )
         paper_width = 80
         st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
-        notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180)
+        notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
 
     start_at = datetime.combine(transaction_date, transaction_time)
@@ -364,8 +398,7 @@ with form_col:
         st.error("Lengkapi kolom wajib: " + ", ".join(missing) + ".")
     elif submitted:
         st.session_state.receipt_data = data
-        st.session_state.receipt_no = receipt_no
-        st.success("Nota berhasil dibuat dan siap diunduh.")
+        st.success("Nota berhasil dibuat dan siap dicetak atau diunduh.")
 
 with preview_col:
     st.markdown('<div class="panel-title">Pratinjau Nota</div>', unsafe_allow_html=True)
@@ -380,14 +413,16 @@ with preview_col:
         st.caption(
             "Pada Android, pilih **Cetak** atau bagikan PDF ke aplikasi printer Bluetooth yang kompatibel."
         )
-        st.download_button("Unduh PDF Nota (Cadangan)", data=pdf_bytes,
+        st.download_button("Download Nota", data=pdf_bytes,
                            file_name=f"nota_{sanitize_filename(active_data['receipt_no'])}.pdf",
                            mime="application/pdf", use_container_width=True)
+        st.button(
+            "Transaksi Baru",
+            on_click=reset_transaction,
+            use_container_width=True,
+            help="Kosongkan seluruh field dan buat nomor nota baru.",
+        )
         st.caption("Tombol **Cetak Nota** dapat digunakan kembali untuk mencetak ulang transaksi terakhir.")
-        if st.button("Transaksi Baru", use_container_width=True):
-            st.session_state.pop("receipt_data", None)
-            st.session_state.receipt_no = new_receipt_number()
-            st.rerun()
     else:
         st.info("Isi formulir dan pilih **Buat Nota** untuk mengaktifkan unduhan PDF.")
 
