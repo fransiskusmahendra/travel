@@ -117,22 +117,29 @@ def wrap_pdf(text: str, font: str, size: float, max_width: float) -> list[str]:
 
 
 def generate_receipt_pdf(data: dict) -> bytes:
+    """Generate a true-size receipt for an 80 mm, 203-DPI thermal printer.
+
+    Most 80 mm printers can only print about 72--74 mm across.  The PDF page
+    remains exactly 80 mm wide, while the small side margins keep every glyph
+    inside that printable area.  A 9.6 pt body is intentionally used here;
+    7--8 pt looks acceptable on screen but is too small on a physical receipt.
+    """
     paper_width_mm = int(data["paper_width_mm"])
     page_width = paper_width_mm * mm
-    margin = (4 if paper_width_mm == 80 else 3) * mm
+    margin = (3 if paper_width_mm == 80 else 2.5) * mm
     content_width = page_width - (2 * margin)
-    body_size = 7.7 if paper_width_mm == 80 else 6.7
-    line_height = body_size + 3.2
+    body_size = 9.6 if paper_width_mm == 80 else 8.2
+    line_height = body_size + 3.4
     rows: list[tuple[str, str, float, float]] = []
 
     def add(text="", font="Helvetica", size=body_size, gap=line_height):
         rows.append((str(text), font, size, gap))
 
-    add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 2, line_height + 4)
-    add("rule", gap=7)
+    add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 3.0, line_height + 5)
+    add("rule", gap=8)
     for label, value in [("No. Nota", data["receipt_no"]), ("Tanggal", data["date_text"]), ("Petugas Primkopau", data["cashier"])]:
         add(f"{label}: {value}")
-    add("rule", gap=8)
+    add("rule", gap=9)
     for label, value in [
         ("Nama", data["name"]),
         ("Identitas", data["identity_no"]),
@@ -142,36 +149,36 @@ def generate_receipt_pdf(data: dict) -> bytes:
     ]:
         for line in wrap_pdf(f"{label}: {value}", "Helvetica", body_size, content_width):
             add(line)
-    add(f"Premi: {format_rupiah(data['premium'])}", "Helvetica-Bold", body_size + 0.5, line_height + 2)
-    add("rule", gap=8)
-    add("MANFAAT / JAMINAN", "Helvetica-Bold", body_size + 0.5, line_height + 2)
+    add(f"Premi: {format_rupiah(data['premium'])}", "Helvetica-Bold", body_size + 0.4, line_height + 3)
+    add("rule", gap=9)
+    add("MANFAAT / JAMINAN", "Helvetica-Bold", body_size + 0.7, line_height + 3)
     for index, (benefit, amount) in enumerate(BENEFITS, 1):
         for line in wrap_pdf(f"{index}. {benefit}", "Helvetica", body_size, content_width):
             add(line)
         for line in wrap_pdf(amount, "Helvetica-Bold", body_size, content_width - 7):
-            add(f"   {line}", "Helvetica-Bold", body_size, line_height + 1)
+            add(f"   {line}", "Helvetica-Bold", body_size, line_height + 1.5)
     if data.get("notes"):
-        add("rule", gap=8)
+        add("rule", gap=9)
         add("CATATAN", "Helvetica-Bold")
         for line in wrap_pdf(data["notes"], "Helvetica", body_size, content_width):
             add(line)
-    add("rule", gap=8)
+    add("rule", gap=9)
     for address in [COMPANY_NAME, *COMPANY_ADDRESS]:
         for line in wrap_pdf(address, "Helvetica", body_size, content_width):
             add(line, "Helvetica-Bold" if address == COMPANY_NAME else "Helvetica")
-    add("rule", gap=8)
+    add("rule", gap=9)
     for line in wrap_pdf(
         "Bukti pembayaran sah. Pertanggungan mengikuti syarat dan ketentuan polis.",
         "Helvetica",
-        body_size - 0.4,
+        body_size - 0.6,
         content_width,
     ):
-        add(line, "Helvetica", body_size - 0.4)
+        add(line, "Helvetica", body_size - 0.6)
 
-    page_height = max(sum(row[3] for row in rows) + (16 * mm), 150 * mm)
+    page_height = max(sum(row[3] for row in rows) + (12 * mm), 150 * mm)
     output = BytesIO()
     pdf = canvas.Canvas(output, pagesize=(page_width, page_height), pageCompression=1)
-    y = page_height - (7 * mm)
+    y = page_height - (5 * mm)
     navy, orange = HexColor("#073B68"), HexColor("#F58220")
     centered_texts = {COMPANY_NAME, "JASINDO TRAVEL", "MANFAAT / JAMINAN",}
     for address in COMPANY_ADDRESS:
@@ -179,7 +186,7 @@ def generate_receipt_pdf(data: dict) -> bytes:
     for text, font, size, gap in rows:
         if text == "rule":
             pdf.setStrokeColor(HexColor("#8CA0AF"))
-            pdf.setLineWidth(0.45)
+            pdf.setLineWidth(0.6)
             pdf.line(margin, y, page_width - margin, y)
             y -= gap
             continue
@@ -411,7 +418,9 @@ with preview_col:
         pdf_bytes = generate_receipt_pdf(active_data)
         render_android_print_button(pdf_bytes, active_data["receipt_no"])
         st.caption(
-            "Pada Android, pilih **Cetak** atau bagikan PDF ke aplikasi printer Bluetooth yang kompatibel."
+            "Pada Android, pilih **Cetak** atau bagikan PDF ke aplikasi printer Bluetooth. "
+            "Gunakan kertas **80 mm**, skala **100% / Actual size**, margin **None**, "
+            "dan nonaktifkan header/footer."
         )
         st.download_button("Download Nota", data=pdf_bytes,
                            file_name=f"nota_{sanitize_filename(active_data['receipt_no'])}.pdf",
