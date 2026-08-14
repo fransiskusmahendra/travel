@@ -9,6 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import mm
+from reportlab.pdfbase.pdfdoc import PDFDictionary, PDFName
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
@@ -121,21 +122,22 @@ def generate_receipt_pdf(data: dict) -> bytes:
 
     Most 80 mm printers can only print about 72--74 mm across.  The PDF page
     remains exactly 80 mm wide, while the small side margins keep every glyph
-    inside that printable area.  A 9.6 pt body is intentionally used here;
-    7--8 pt looks acceptable on screen but is too small on a physical receipt.
+    inside that printable area.  A 12.2 pt body is intentionally used here
+    because the Android print path observed in production reduces the visual
+    scale.  PDF viewer preferences also request true-size printing.
     """
     paper_width_mm = int(data["paper_width_mm"])
     page_width = paper_width_mm * mm
-    margin = (3 if paper_width_mm == 80 else 2.5) * mm
+    margin = (2 if paper_width_mm == 80 else 2.5) * mm
     content_width = page_width - (2 * margin)
-    body_size = 9.6 if paper_width_mm == 80 else 8.2
-    line_height = body_size + 3.4
+    body_size = 12.2 if paper_width_mm == 80 else 8.2
+    line_height = body_size + 4.0
     rows: list[tuple[str, str, float, float]] = []
 
     def add(text="", font="Helvetica", size=body_size, gap=line_height):
         rows.append((str(text), font, size, gap))
 
-    add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 3.0, line_height + 5)
+    add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 4.0, line_height + 6)
     add("rule", gap=8)
     for label, value in [("No. Nota", data["receipt_no"]), ("Tanggal", data["date_text"]), ("Petugas Primkopau", data["cashier"])]:
         add(f"{label}: {value}")
@@ -178,7 +180,12 @@ def generate_receipt_pdf(data: dict) -> bytes:
     page_height = max(sum(row[3] for row in rows) + (12 * mm), 150 * mm)
     output = BytesIO()
     pdf = canvas.Canvas(output, pagesize=(page_width, page_height), pageCompression=1)
-    y = page_height - (5 * mm)
+    # Ask compatible Android PDF viewers/printer services to keep the true
+    # 80 mm page size instead of silently shrinking it to a generic page.
+    pdf._doc.Catalog.ViewerPreferences = PDFDictionary(
+        {"PrintScaling": PDFName("None")}
+    )
+    y = page_height - (4 * mm)
     navy, orange = HexColor("#073B68"), HexColor("#F58220")
     centered_texts = {COMPANY_NAME, "JASINDO TRAVEL", "MANFAAT / JAMINAN",}
     for address in COMPANY_ADDRESS:
@@ -419,7 +426,7 @@ with preview_col:
         render_android_print_button(pdf_bytes, active_data["receipt_no"])
         st.caption(
             "Pada Android, pilih **Cetak** atau bagikan PDF ke aplikasi printer Bluetooth. "
-            "Gunakan kertas **80 mm**, skala **100% / Actual size**, margin **None**, "
+            "Gunakan kertas **80 mm**, skala **100% / Actual size** (bukan Fit to page), margin **None**, "
             "dan nonaktifkan header/footer."
         )
         st.download_button("Download Nota", data=pdf_bytes,
