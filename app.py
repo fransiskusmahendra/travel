@@ -45,7 +45,7 @@ def benefits_for_premium(value) -> list[tuple[str, str]]:
     """Return benefits according to the selected premium tier."""
     multiplier = 2 if parse_amount(value) == 40_000 else 1
     adjusted = []
-    for index, (title, amount) in enumerate(benefits_for_premium(active_data["premium"])):
+    for index, (title, amount) in enumerate(BENEFITS):
         if index < 3:
             adjusted.append((title, format_rupiah(parse_amount(amount) * multiplier)))
         else:
@@ -469,7 +469,7 @@ with preview_col:
 
 st.markdown("### Manfaat Perlindungan")
 benefit_columns = st.columns(3)
-for index, (title, amount) in enumerate(BENEFITS):
+for index, (title, amount) in enumerate(benefits_for_premium(active_data["premium"])):
     with benefit_columns[index % 3]:
         st.markdown(f'<div class="benefit-card"><strong>{title}</strong><span>{amount}</span></div>', unsafe_allow_html=True)
 
