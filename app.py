@@ -1,6 +1,6 @@
 import base64
 import re
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from html import escape
 from io import BytesIO
 from pathlib import Path
@@ -20,6 +20,7 @@ COMPANY_ADDRESS = [
     "Jakarta Pusat, DKI Jakarta 10340",
     "Indonesia (Kantor Pusat)",
 ]
+JAKARTA_TZ = timezone(timedelta(hours=7))
 DEFAULT_PREMIUM = 20_000
 PREMIUM_OPTIONS = (20_000, 40_000)
 BENEFITS = [
@@ -332,18 +333,15 @@ st.markdown(
 
 
 def new_receipt_number() -> str:
-    return f"JTR-{datetime.now():%Y%m%d-%H%M%S}"
+    return f"JTR-{datetime.now(JAKARTA_TZ):%Y%m%d-%H%M%S}"
 
 
 def reset_transaction() -> None:
     """Clear every transaction field and prepare a fresh receipt number."""
-    now = datetime.now()
     st.session_state.pop("receipt_data", None)
     st.session_state.update(
         {
             "receipt_no_input": new_receipt_number(),
-            "transaction_date_input": date.today(),
-            "transaction_time_input": now.time().replace(second=0, microsecond=0),
             "customer_name_input": "",
             "identity_no_input": "",
             "origin_input": "",
@@ -394,9 +392,6 @@ with form_col:
         c1, c2 = st.columns(2)
         with c1:
             receipt_no = st.text_input("Nomor nota *", key="receipt_no_input")
-            transaction_date = st.date_input(
-                "Tanggal transaksi *", format="DD/MM/YYYY", key="transaction_date_input"
-            )
             customer_name = st.text_input(
                 "Nama peserta *", placeholder="Nama sesuai identitas", key="customer_name_input"
             )
@@ -406,7 +401,6 @@ with form_col:
             origin = st.text_input("Kota asal", placeholder="Contoh: Jakarta", key="origin_input")
         with c2:
             cashier = st.text_input("Petugas Primkopau *", key="cashier_input")
-            transaction_time = st.time_input("Waktu transaksi *", key="transaction_time_input")
             phone = st.text_input(
                 "Nomor HP *", placeholder="Contoh: 081234567890", key="phone_input"
             )
@@ -417,16 +411,17 @@ with form_col:
             "Masa perlindungan (hari)", min_value=1, max_value=31, key="duration_days_input"
         )
         paper_width = 80
+        st.caption("Tanggal dan jam transaksi dicatat otomatis saat tombol **Buat Nota** ditekan.")
         st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
 
-    start_at = datetime.combine(transaction_date, transaction_time)
+    start_at = datetime.now(JAKARTA_TZ)
     required = {"Nomor nota": receipt_no, "Nama peserta": customer_name, "NIK / No. Paspor": identity_no,
                 "Nomor HP": phone, "Petugas Primkopau": cashier}
     missing = [label for label, value in required.items() if not str(value).strip()]
     data = {
-        "receipt_no": receipt_no.strip() or "-", "date_text": start_at.strftime("%d/%m/%Y %H:%M"),
+        "receipt_no": receipt_no.strip() or "-", "date_text": start_at.strftime("%d/%m/%Y %H:%M WIB"),
         "cashier": cashier.strip() or "-", "name": customer_name.strip() or "-", "phone": phone.strip() or "-",
         "identity_no": identity_no.strip() or "-",
         "route": " - ".join(part for part in [origin.strip(), destination.strip()] if part) or "-",
