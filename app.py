@@ -432,11 +432,6 @@ with form_col:
     )
     location_data = get_geolocation()
     origin, location_detected = origin_from_location(location_data)
-    if location_detected:
-        st.success(f"Asal otomatis berdasarkan lokasi perangkat: **{origin}**")
-    else:
-        st.info("Lokasi tidak tersedia atau belum diizinkan. Asal otomatis: **Kupang**")
-    st.caption("Koordinat hanya digunakan sementara untuk menentukan kota asal dan tidak disimpan.")
     with st.form("receipt_form"):
         c1, c2 = st.columns(2)
         with c1:
@@ -456,11 +451,6 @@ with form_col:
                 "Tujuan perjalanan", placeholder="Contoh: Bandung", key="destination_input"
             )
         paper_width = 80
-        st.caption(
-            "Tanggal dan jam transaksi dicatat otomatis saat tombol **Buat Nota** ditekan. "
-            "Masa perlindungan ditetapkan selama **3 hari**."
-        )
-        st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
 
