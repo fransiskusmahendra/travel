@@ -20,7 +20,7 @@ COMPANY_ADDRESS = [
     "Jakarta Pusat, DKI Jakarta 10340",
     "Indonesia (Kantor Pusat)",
 ]
-JAKARTA_TZ = timezone(timedelta(hours=7))
+WITA_TZ = timezone(timedelta(hours=8))
 DEFAULT_PREMIUM = 20_000
 PREMIUM_OPTIONS = (20_000, 40_000)
 BENEFITS = [
@@ -333,7 +333,7 @@ st.markdown(
 
 
 def new_receipt_number() -> str:
-    return f"JTR-{datetime.now(JAKARTA_TZ):%Y%m%d-%H%M%S}"
+    return f"JTR-{datetime.now(WITA_TZ):%Y%m%d-%H%M%S}"
 
 
 def reset_transaction() -> None:
@@ -416,12 +416,12 @@ with form_col:
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
 
-    start_at = datetime.now(JAKARTA_TZ)
+    start_at = datetime.now(WITA_TZ)
     required = {"Nomor nota": receipt_no, "Nama peserta": customer_name, "NIK / No. Paspor": identity_no,
                 "Nomor HP": phone, "Petugas Primkopau": cashier}
     missing = [label for label, value in required.items() if not str(value).strip()]
     data = {
-        "receipt_no": receipt_no.strip() or "-", "date_text": start_at.strftime("%d/%m/%Y %H:%M WIB"),
+        "receipt_no": receipt_no.strip() or "-", "date_text": start_at.strftime("%d/%m/%Y %H:%M WITA"),
         "cashier": cashier.strip() or "-", "name": customer_name.strip() or "-", "phone": phone.strip() or "-",
         "identity_no": identity_no.strip() or "-",
         "route": " - ".join(part for part in [origin.strip(), destination.strip()] if part) or "-",
