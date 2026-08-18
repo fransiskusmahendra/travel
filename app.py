@@ -23,9 +23,10 @@ COMPANY_ADDRESS = [
     "Indonesia (Kantor Pusat)",
 ]
 WITA_TZ = timezone(timedelta(hours=8))
-FIXED_COVERAGE_DAYS = 3
+FIXED_COVERAGE_DAYS = 1
 DEFAULT_PREMIUM = 20_000
 PREMIUM_OPTIONS = (20_000, 40_000)
+CASHIER_OPTIONS = ("Anggi", "Desi", "Leony")
 NTT_ORIGINS = (
     ("Kupang", -10.1772, 123.6070),
     ("Soe", -9.8607, 124.2830),
@@ -388,7 +389,7 @@ def reset_transaction() -> None:
             "receipt_no_input": new_receipt_number(),
             "customer_name_input": "",
             "identity_no_input": "",
-            "cashier_input": "",
+            "cashier_input": CASHIER_OPTIONS[0],
             "phone_input": "",
             "destination_input": "",
             "premium_input": DEFAULT_PREMIUM,
@@ -401,6 +402,8 @@ if "receipt_no_input" not in st.session_state:
     reset_transaction()
 if st.session_state.get("premium_input") not in PREMIUM_OPTIONS:
     st.session_state["premium_input"] = DEFAULT_PREMIUM
+if st.session_state.get("cashier_input") not in CASHIER_OPTIONS:
+    st.session_state["cashier_input"] = CASHIER_OPTIONS[0]
 
 logo_path = Path(__file__).parent / "assets" / "qira-logo.png"
 logo_base64 = base64.b64encode(logo_path.read_bytes()).decode("ascii") if logo_path.exists() else ""
@@ -443,7 +446,11 @@ with form_col:
                 "NIK / No. Paspor *", placeholder="Masukkan nomor identitas", key="identity_no_input"
             )
         with c2:
-            cashier = st.text_input("Petugas Primkopau *", key="cashier_input")
+            cashier = st.selectbox(
+                "Petugas Primkopau *",
+                options=CASHIER_OPTIONS,
+                key="cashier_input",
+            )
             phone = st.text_input(
                 "Nomor HP *", placeholder="Contoh: 081234567890", key="phone_input"
             )
