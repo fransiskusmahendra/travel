@@ -1,5 +1,6 @@
 import base64
 import re
+from math import cos, radians
 from datetime import datetime, timedelta, timezone
 from html import escape
 from io import BytesIO
@@ -7,6 +8,7 @@ from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
+from streamlit_js_eval import get_geolocation
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import mm
 from reportlab.pdfbase.pdfdoc import PDFDictionary, PDFName
@@ -24,6 +26,23 @@ WITA_TZ = timezone(timedelta(hours=8))
 FIXED_COVERAGE_DAYS = 3
 DEFAULT_PREMIUM = 20_000
 PREMIUM_OPTIONS = (20_000, 40_000)
+NTT_ORIGINS = (
+    ("Kupang", -10.1772, 123.6070),
+    ("Soe", -9.8607, 124.2830),
+    ("Kefamenanu", -9.4467, 124.4781),
+    ("Atambua", -9.1061, 124.8925),
+    ("Ba'a", -10.7386, 123.1237),
+    ("Kalabahi", -8.2186, 124.5186),
+    ("Lewoleba", -8.3720, 123.4162),
+    ("Larantuka", -8.3431, 122.9870),
+    ("Maumere", -8.6199, 122.2111),
+    ("Ende", -8.8432, 121.6623),
+    ("Bajawa", -8.7847, 120.9672),
+    ("Ruteng", -8.6136, 120.4647),
+    ("Labuan Bajo", -8.4964, 119.8877),
+    ("Waingapu", -9.6567, 120.2641),
+    ("Waikabubak", -9.4097, 119.2445),
+)
 BENEFITS = [
     ("Meninggal dunia akibat kecelakaan", "IDR 250.000.000"),
     ("Cacat tetap akibat kecelakaan", "IDR 250.000.000"),
@@ -53,6 +72,30 @@ def benefits_for_premium(value) -> list[tuple[str, str]]:
         else:
             adjusted.append((title, amount))
     return adjusted
+
+
+def origin_from_location(location) -> tuple[str, bool]:
+    """Return the nearest supported NTT city, defaulting safely to Kupang."""
+    if not isinstance(location, dict) or location.get("error"):
+        return "Kupang", False
+    try:
+        coords = location["coords"]
+        latitude = float(coords["latitude"])
+        longitude = float(coords["longitude"])
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            raise ValueError("invalid coordinates")
+    except (KeyError, TypeError, ValueError):
+        return "Kupang", False
+
+    longitude_scale = cos(radians(latitude))
+    nearest = min(
+        NTT_ORIGINS,
+        key=lambda city: (
+            (latitude - city[1]) ** 2
+            + ((longitude - city[2]) * longitude_scale) ** 2
+        ),
+    )
+    return nearest[0], True
 
 
 def insurance_period(start_at: datetime, duration_days: int) -> str:
@@ -345,7 +388,6 @@ def reset_transaction() -> None:
             "receipt_no_input": new_receipt_number(),
             "customer_name_input": "",
             "identity_no_input": "",
-            "origin_input": "",
             "cashier_input": "",
             "phone_input": "",
             "destination_input": "",
@@ -388,6 +430,13 @@ with form_col:
         "Premi Rp20.000 menggunakan jaminan standar. Pada premi Rp40.000, "
         "jaminan meninggal dunia, cacat tetap, dan perawatan medis menjadi 2x."
     )
+    location_data = get_geolocation()
+    origin, location_detected = origin_from_location(location_data)
+    if location_detected:
+        st.success(f"Asal otomatis berdasarkan lokasi perangkat: **{origin}**")
+    else:
+        st.info("Lokasi tidak tersedia atau belum diizinkan. Asal otomatis: **Kupang**")
+    st.caption("Koordinat hanya digunakan sementara untuk menentukan kota asal dan tidak disimpan.")
     with st.form("receipt_form"):
         c1, c2 = st.columns(2)
         with c1:
@@ -398,7 +447,6 @@ with form_col:
             identity_no = st.text_input(
                 "NIK / No. Paspor *", placeholder="Masukkan nomor identitas", key="identity_no_input"
             )
-            origin = st.text_input("Kota asal", placeholder="Contoh: Jakarta", key="origin_input")
         with c2:
             cashier = st.text_input("Petugas Primkopau *", key="cashier_input")
             phone = st.text_input(
