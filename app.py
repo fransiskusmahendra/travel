@@ -380,6 +380,16 @@ form_col, preview_col = st.columns([1.08, 0.92], gap="large")
 with form_col:
     st.markdown('<div class="panel-title">Data Transaksi</div>', unsafe_allow_html=True)
     st.markdown('<div class="panel-note">Lengkapi data berikut untuk membuat nota.</div>', unsafe_allow_html=True)
+    premium_value = st.selectbox(
+        "Pilihan premi *",
+        options=PREMIUM_OPTIONS,
+        format_func=format_rupiah,
+        key="premium_input",
+    )
+    st.caption(
+        "Premi Rp20.000 menggunakan jaminan standar. Pada premi Rp40.000, "
+        "jaminan meninggal dunia, cacat tetap, dan perawatan medis menjadi 2x."
+    )
     with st.form("receipt_form"):
         c1, c2 = st.columns(2)
         with c1:
@@ -403,20 +413,10 @@ with form_col:
             destination = st.text_input(
                 "Tujuan perjalanan", placeholder="Contoh: Bandung", key="destination_input"
             )
-            premium_value = st.selectbox(
-                "Premi *",
-                options=PREMIUM_OPTIONS,
-                format_func=format_rupiah,
-                key="premium_input",
-            )
         duration_days = st.number_input(
             "Masa perlindungan (hari)", min_value=1, max_value=31, key="duration_days_input"
         )
         paper_width = 80
-        st.caption(
-            "Premi Rp20.000 menggunakan jaminan standar. Pada premi Rp40.000, "
-            "jaminan meninggal dunia, cacat tetap, dan perawatan medis menjadi 2x."
-        )
         st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
@@ -443,6 +443,8 @@ with preview_col:
     st.markdown('<div class="panel-title">Pratinjau Nota</div>', unsafe_allow_html=True)
     st.markdown('<div class="panel-note">Pratinjau menyesuaikan ukuran kertas yang dipilih.</div>', unsafe_allow_html=True)
     active_data = st.session_state.get("receipt_data", data)
+    if active_data["premium"] != premium_value:
+        st.info("Pilihan premi berubah. Tekan **Buat Nota** untuk memperbarui pratinjau dan PDF.")
     preview = build_receipt_text(active_data)
     st.markdown('<div class="status-ready">PDF siap dicetak pada printer thermal</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="receipt-preview">{escape(preview)}</div>', unsafe_allow_html=True)
@@ -467,9 +469,9 @@ with preview_col:
     else:
         st.info("Isi formulir dan pilih **Buat Nota** untuk mengaktifkan unduhan PDF.")
 
-st.markdown("### Manfaat Perlindungan")
+st.markdown(f"### Manfaat Perlindungan — {format_rupiah(premium_value)}")
 benefit_columns = st.columns(3)
-for index, (title, amount) in enumerate(benefits_for_premium(active_data["premium"])):
+for index, (title, amount) in enumerate(benefits_for_premium(premium_value)):
     with benefit_columns[index % 3]:
         st.markdown(f'<div class="benefit-card"><strong>{title}</strong><span>{amount}</span></div>', unsafe_allow_html=True)
 
