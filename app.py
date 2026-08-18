@@ -21,6 +21,7 @@ COMPANY_ADDRESS = [
     "Indonesia (Kantor Pusat)",
 ]
 WITA_TZ = timezone(timedelta(hours=8))
+FIXED_COVERAGE_DAYS = 3
 DEFAULT_PREMIUM = 20_000
 PREMIUM_OPTIONS = (20_000, 40_000)
 BENEFITS = [
@@ -349,7 +350,6 @@ def reset_transaction() -> None:
             "phone_input": "",
             "destination_input": "",
             "premium_input": DEFAULT_PREMIUM,
-            "duration_days_input": 3,
             "notes_input": "",
         }
     )
@@ -407,11 +407,11 @@ with form_col:
             destination = st.text_input(
                 "Tujuan perjalanan", placeholder="Contoh: Bandung", key="destination_input"
             )
-        duration_days = st.number_input(
-            "Masa perlindungan (hari)", min_value=1, max_value=31, key="duration_days_input"
-        )
         paper_width = 80
-        st.caption("Tanggal dan jam transaksi dicatat otomatis saat tombol **Buat Nota** ditekan.")
+        st.caption(
+            "Tanggal dan jam transaksi dicatat otomatis saat tombol **Buat Nota** ditekan. "
+            "Masa perlindungan ditetapkan selama **3 hari**."
+        )
         st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
@@ -425,7 +425,7 @@ with form_col:
         "cashier": cashier.strip() or "-", "name": customer_name.strip() or "-", "phone": phone.strip() or "-",
         "identity_no": identity_no.strip() or "-",
         "route": " - ".join(part for part in [origin.strip(), destination.strip()] if part) or "-",
-        "period": insurance_period(start_at, int(duration_days)), "premium": premium_value,
+        "period": insurance_period(start_at, FIXED_COVERAGE_DAYS), "premium": premium_value,
         "notes": notes.strip(), "paper_width_mm": paper_width,
     }
     if submitted and missing:
