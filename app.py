@@ -100,7 +100,8 @@ def origin_from_location(location) -> tuple[str, bool]:
 
 
 def insurance_period(start_at: datetime, duration_days: int) -> str:
-    end_at = start_at + timedelta(days=max(duration_days, 1) - 1)
+    """Return a full-duration period; one day ends 24 hours after start."""
+    end_at = start_at + timedelta(days=max(duration_days, 1))
     return f"{start_at:%d/%m/%Y} s/d {end_at:%d/%m/%Y}"
 
 
