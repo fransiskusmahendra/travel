@@ -21,6 +21,7 @@ COMPANY_ADDRESS = [
     "Indonesia (Kantor Pusat)",
 ]
 DEFAULT_PREMIUM = 20_000
+PREMIUM_OPTIONS = (20_000, 40_000)
 BENEFITS = [
     ("Meninggal dunia akibat kecelakaan", "IDR 250.000.000"),
     ("Cacat tetap akibat kecelakaan", "IDR 250.000.000"),
@@ -38,6 +39,18 @@ def parse_amount(value) -> int:
 
 def format_rupiah(value) -> str:
     return "IDR {:,}".format(parse_amount(value)).replace(",", ".")
+
+
+def benefits_for_premium(value) -> list[tuple[str, str]]:
+    """Return benefits according to the selected premium tier."""
+    multiplier = 2 if parse_amount(value) == 40_000 else 1
+    adjusted = []
+    for index, (title, amount) in enumerate(benefits_for_premium(active_data["premium"])):
+        if index < 3:
+            adjusted.append((title, format_rupiah(parse_amount(amount) * multiplier)))
+        else:
+            adjusted.append((title, amount))
+    return adjusted
 
 
 def insurance_period(start_at: datetime, duration_days: int) -> str:
@@ -89,7 +102,7 @@ def build_receipt_text(data: dict) -> str:
         lines.append(f"{label:<9}: {wrapped[0]}")
         lines.extend(f"{'':11}{line}" for line in wrapped[1:])
     lines.extend([divider, "MANFAAT / JAMINAN".center(width), divider])
-    for index, (benefit, amount) in enumerate(BENEFITS, 1):
+    for index, (benefit, amount) in enumerate(benefits_for_premium(data["premium"]), 1):
         lines.extend(wrap_chars(f"{index}. {benefit}", width))
         lines.extend(f"   {line}" for line in wrap_chars(amount, width - 3))
     if data.get("notes"):
@@ -154,7 +167,7 @@ def generate_receipt_pdf(data: dict) -> bytes:
     add(f"Premi: {format_rupiah(data['premium'])}", "Helvetica-Bold", body_size + 0.4, line_height + 3)
     add("rule", gap=9)
     add("MANFAAT / JAMINAN", "Helvetica-Bold", body_size + 0.7, line_height + 3)
-    for index, (benefit, amount) in enumerate(BENEFITS, 1):
+    for index, (benefit, amount) in enumerate(benefits_for_premium(data["premium"]), 1):
         for line in wrap_pdf(f"{index}. {benefit}", "Helvetica", body_size, content_width):
             add(line)
         for line in wrap_pdf(amount, "Helvetica-Bold", body_size, content_width - 7):
@@ -336,7 +349,7 @@ def reset_transaction() -> None:
             "cashier_input": "",
             "phone_input": "",
             "destination_input": "",
-            "premium_input": f"{DEFAULT_PREMIUM:,}".replace(",", "."),
+            "premium_input": DEFAULT_PREMIUM,
             "duration_days_input": 3,
             "notes_input": "",
         }
@@ -345,6 +358,8 @@ def reset_transaction() -> None:
 
 if "receipt_no_input" not in st.session_state:
     reset_transaction()
+if st.session_state.get("premium_input") not in PREMIUM_OPTIONS:
+    st.session_state["premium_input"] = DEFAULT_PREMIUM
 
 logo_path = Path(__file__).parent / "assets" / "qira-logo.png"
 logo_base64 = base64.b64encode(logo_path.read_bytes()).decode("ascii") if logo_path.exists() else ""
@@ -387,11 +402,20 @@ with form_col:
             destination = st.text_input(
                 "Tujuan perjalanan", placeholder="Contoh: Bandung", key="destination_input"
             )
-            premium_text = st.text_input("Premi (Rp) *", key="premium_input")
+            premium_value = st.selectbox(
+                "Premi *",
+                options=PREMIUM_OPTIONS,
+                format_func=format_rupiah,
+                key="premium_input",
+            )
         duration_days = st.number_input(
             "Masa perlindungan (hari)", min_value=1, max_value=31, key="duration_days_input"
         )
         paper_width = 80
+        st.caption(
+            "Premi Rp20.000 menggunakan jaminan standar. Pada premi Rp40.000, "
+            "jaminan meninggal dunia, cacat tetap, dan perawatan medis menjadi 2x."
+        )
         st.caption("Format nota ditetapkan untuk printer thermal 80 mm.")
         notes = st.text_area("Catatan", placeholder="Opsional", max_chars=180, key="notes_input")
         submitted = st.form_submit_button("Buat Nota", type="primary", use_container_width=True)
@@ -405,7 +429,7 @@ with form_col:
         "cashier": cashier.strip() or "-", "name": customer_name.strip() or "-", "phone": phone.strip() or "-",
         "identity_no": identity_no.strip() or "-",
         "route": " - ".join(part for part in [origin.strip(), destination.strip()] if part) or "-",
-        "period": insurance_period(start_at, int(duration_days)), "premium": premium_text,
+        "period": insurance_period(start_at, int(duration_days)), "premium": premium_value,
         "notes": notes.strip(), "paper_width_mm": paper_width,
     }
     if submitted and missing:
