@@ -135,25 +135,26 @@ def generate_receipt_pdf(data: dict) -> bytes:
 
     Most 80 mm printers can only print about 72--74 mm across.  The PDF page
     remains exactly 80 mm wide, while the small side margins keep every glyph
-    inside that printable area.  A 12.2 pt body is intentionally used here
+    inside that printable area.  A 14 pt body is intentionally used here
     because the Android print path observed in production reduces the visual
     scale.  PDF viewer preferences also request true-size printing.
     """
     paper_width_mm = int(data["paper_width_mm"])
     page_width = paper_width_mm * mm
-    margin = (2 if paper_width_mm == 80 else 2.5) * mm
+    margin = (1 if paper_width_mm == 80 else 2.5) * mm
     content_width = page_width - (2 * margin)
-    body_size = 12.2 if paper_width_mm == 80 else 8.2
-    line_height = body_size + 4.0
+    body_size = 14.0 if paper_width_mm == 80 else 8.2
+    line_height = body_size + 4.8
     rows: list[tuple[str, str, float, float]] = []
 
     def add(text="", font="Helvetica", size=body_size, gap=line_height):
         rows.append((str(text), font, size, gap))
 
-    add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 4.0, line_height + 6)
+    add("JASINDO TRAVEL", "Helvetica-Bold", body_size + 4.5, line_height + 7)
     add("rule", gap=8)
     for label, value in [("No. Nota", data["receipt_no"]), ("Tanggal", data["date_text"]), ("Petugas Primkopau", data["cashier"])]:
-        add(f"{label}: {value}")
+        for line in wrap_pdf(f"{label}: {value}", "Helvetica", body_size, content_width):
+            add(line)
     add("rule", gap=9)
     for label, value in [
         ("Nama", data["name"]),
@@ -199,18 +200,18 @@ def generate_receipt_pdf(data: dict) -> bytes:
         {"PrintScaling": PDFName("None")}
     )
     y = page_height - (4 * mm)
-    navy, orange = HexColor("#073B68"), HexColor("#F58220")
+    print_black = HexColor("#000000")
     centered_texts = {COMPANY_NAME, "JASINDO TRAVEL", "MANFAAT / JAMINAN",}
     for address in COMPANY_ADDRESS:
         centered_texts.update(wrap_pdf(address, "Helvetica", body_size, content_width))
     for text, font, size, gap in rows:
         if text == "rule":
-            pdf.setStrokeColor(HexColor("#8CA0AF"))
-            pdf.setLineWidth(0.6)
+            pdf.setStrokeColor(print_black)
+            pdf.setLineWidth(0.8)
             pdf.line(margin, y, page_width - margin, y)
             y -= gap
             continue
-        pdf.setFillColor(orange if text == "JASINDO TRAVEL" else navy if font == "Helvetica-Bold" else HexColor("#172B3A"))
+        pdf.setFillColor(print_black)
         pdf.setFont(font, size)
         centered = text in centered_texts
         x = (page_width - stringWidth(text, font, size)) / 2 if centered else margin
